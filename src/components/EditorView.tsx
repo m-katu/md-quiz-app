@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { MarkdownData, QA } from '../utils/markdownParser';
 import { Trash2, Plus, GripVertical, Eye, Edit3 } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -9,7 +9,7 @@ import { MarkdownViewer } from './MarkdownViewer';
 
 interface EditorViewProps {
   data: MarkdownData;
-  setData: (data: MarkdownData) => void;
+  setData: React.Dispatch<React.SetStateAction<MarkdownData>>;
 }
 
 // ---------------------------------------------
@@ -139,6 +139,7 @@ export const EditorView: React.FC<EditorViewProps> = ({ data, setData }) => {
   const [newQuestion, setNewQuestion] = useState('');
   const [newAnswer, setNewAnswer] = useState('');
   const [isPreviewNew, setIsPreviewNew] = useState(false);
+  const deletedQasRef = useRef<{index: number, qa: QA}[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -172,8 +173,42 @@ export const EditorView: React.FC<EditorViewProps> = ({ data, setData }) => {
   };
 
   const handleDelete = (id: string) => {
-    setData({ ...data, qas: data.qas.filter((qa) => qa.id !== id) });
+    const index = data.qas.findIndex((qa) => qa.id === id);
+    if (index !== -1) {
+      const deletedQa = data.qas[index];
+      deletedQasRef.current.push({ index, qa: deletedQa });
+    }
+    setData(current => ({ ...current, qas: current.qas.filter((qa) => qa.id !== id) }));
   };
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+
+        if (deletedQasRef.current.length === 0) return;
+        
+        e.preventDefault();
+        
+        const lastDeleted = deletedQasRef.current.pop();
+        if (!lastDeleted) return;
+        
+        setData(currentData => {
+          const newQas = [...currentData.qas];
+          const insertIndex = Math.min(lastDeleted.index, newQas.length);
+          // dnd-kitのキャッシュバグを防ぐため、新しいIDを付与する
+          const restoredQa = { ...lastDeleted.qa, id: crypto.randomUUID() };
+          newQas.splice(insertIndex, 0, restoredQa);
+          return { ...currentData, qas: newQas };
+        });
+      }
+    };
+    
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [setData]);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
