@@ -2,6 +2,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 
 interface MarkdownViewerProps {
@@ -12,7 +13,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content }) => {
   return (
     <div style={{ textAlign: 'left', display: 'inline-block', maxWidth: '100%', wordBreak: 'break-word' }}>
       <ReactMarkdown
-        remarkPlugins={[remarkMath, remarkGfm]}
+        remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeKatex]}
         components={{
           p: ({ node, ...props }) => <p style={{ margin: '0.5rem 0' }} {...props} />,
